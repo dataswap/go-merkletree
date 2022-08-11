@@ -37,7 +37,7 @@ type MerkleTree struct {
 	*Config          // Merkle Tree configuration
 	Root    []byte   // Merkle root hash
 	Leaves  []*Node  // Merkle Tree leaves, i.e. the hashes of the data blocks for tree generation
-	Proves  []*Proof // proves to the data blocks generated during the tree building process
+	Proofs  []*Proof // proofs to the data blocks generated during the tree building process
 }
 
 // Node implements the Merkle Tree node
@@ -61,7 +61,7 @@ func NewMerkleTree(config *Config) *MerkleTree {
 	}
 }
 
-// Build builds up the Merkle Tree and generates the proves
+// Build builds up the Merkle Tree and generates the proofs
 func (m *MerkleTree) Build(blocks []DataBlock) (err error) {
 	if len(blocks) <= 1 {
 		return nil
@@ -84,9 +84,9 @@ func (m *MerkleTree) Build(blocks []DataBlock) (err error) {
 
 func (m *MerkleTree) buildTree() (root []byte, err error) {
 	numLeaves := len(m.Leaves)
-	m.Proves = make([]*Proof, numLeaves)
+	m.Proofs = make([]*Proof, numLeaves)
 	for i := 0; i < numLeaves; i++ {
-		m.Proves[i] = new(Proof)
+		m.Proofs[i] = new(Proof)
 	}
 	var (
 		step    = 1
@@ -98,7 +98,7 @@ func (m *MerkleTree) buildTree() (root []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
-	m.assignProves(buf, numLeaves, 0)
+	m.assignProofs(buf, numLeaves, 0)
 	for {
 		buf, prevLen, err = m.fixOdd(buf, prevLen)
 		if err != nil {
@@ -117,7 +117,7 @@ func (m *MerkleTree) buildTree() (root []byte, err error) {
 				return nil, err
 			}
 		}
-		m.assignProves(buf, prevLen, step)
+		m.assignProofs(buf, prevLen, step)
 		step++
 	}
 	root = buf[0].Hash
@@ -152,7 +152,7 @@ func (m *MerkleTree) fixOdd(buf []*Node, prevLen int) ([]*Node, int, error) {
 	return buf, prevLen, nil
 }
 
-func (m *MerkleTree) assignProves(buf []*Node, bufLen, step int) {
+func (m *MerkleTree) assignProofs(buf []*Node, bufLen, step int) {
 	if bufLen < 2 {
 		return
 	}
@@ -162,7 +162,7 @@ func (m *MerkleTree) assignProves(buf []*Node, bufLen, step int) {
 	}
 }
 
-func (m *MerkleTree) assignProvesParallel(buf []*Node, bufLen, step int) {
+func (m *MerkleTree) assignProofsParallel(buf []*Node, bufLen, step int) {
 	numRoutines := m.NumRoutines
 	if bufLen < 2 {
 		return
@@ -189,29 +189,29 @@ func (m *MerkleTree) assignPairProof(buf []*Node, bufLen, idx, batch, step int) 
 	}
 	start := idx * batch
 	end := start + batch
-	if end > len(m.Proves) {
-		end = len(m.Proves)
+	if end > len(m.Proofs) {
+		end = len(m.Proofs)
 	}
 	for j := start; j < end; j++ {
-		m.Proves[j].Path += 1 << step
-		m.Proves[j].Neighbors = append(m.Proves[j].Neighbors, buf[idx+1].Hash)
+		m.Proofs[j].Path += 1 << step
+		m.Proofs[j].Neighbors = append(m.Proofs[j].Neighbors, buf[idx+1].Hash)
 	}
 	start = (idx + 1) * batch
 	end = start + batch
-	if end > len(m.Proves) {
-		end = len(m.Proves)
+	if end > len(m.Proofs) {
+		end = len(m.Proofs)
 	}
 	for j := start; j < end; j++ {
-		m.Proves[j].Neighbors = append(m.Proves[j].Neighbors, buf[idx].Hash)
+		m.Proofs[j].Neighbors = append(m.Proofs[j].Neighbors, buf[idx].Hash)
 	}
 }
 
 func (m *MerkleTree) buildTreeParallel() (root []byte, err error) {
 	numRoutines := m.NumRoutines
 	numLeaves := len(m.Leaves)
-	m.Proves = make([]*Proof, numLeaves)
+	m.Proofs = make([]*Proof, numLeaves)
 	for i := 0; i < numLeaves; i++ {
-		m.Proves[i] = new(Proof)
+		m.Proofs[i] = new(Proof)
 	}
 	var (
 		step    = 1
@@ -224,7 +224,7 @@ func (m *MerkleTree) buildTreeParallel() (root []byte, err error) {
 		return nil, err
 	}
 	buf2 := make([]*Node, prevLen/2)
-	m.assignProvesParallel(buf1, numLeaves, 0)
+	m.assignProofsParallel(buf1, numLeaves, 0)
 	for {
 		buf1, prevLen, err = m.fixOdd(buf1, prevLen)
 		if err != nil {
@@ -259,7 +259,7 @@ func (m *MerkleTree) buildTreeParallel() (root []byte, err error) {
 				return nil, err
 			}
 		}
-		m.assignProvesParallel(buf1, prevLen, step)
+		m.assignProofsParallel(buf1, prevLen, step)
 		step++
 	}
 	root = buf1[0].Hash
@@ -338,7 +338,7 @@ func generateLeavesParallel(blocks []DataBlock,
 func (m *MerkleTree) Reset() {
 	m.Leaves = nil
 	m.Root = nil
-	m.Proves = nil
+	m.Proofs = nil
 }
 
 // Verify verifies the data block with the Merkle Tree proof
