@@ -16,8 +16,8 @@ type mockDataBlock struct {
 	data []byte
 }
 
-func (t *mockDataBlock) Serialize() ([]byte, error) {
-	return t.data, nil
+func (m *mockDataBlock) Serialize() ([]byte, error) {
+	return m.data, nil
 }
 
 func genTestDataBlocks(num int) []DataBlock {
@@ -293,6 +293,7 @@ func BenchmarkMerkleTreeBuild(b *testing.B) {
 		HashFunc:        defaultHashFunc,
 		AllowDuplicates: true,
 	})
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		err := m.Build(genTestDataBlocks(benchSize))
 		if err != nil {
@@ -308,6 +309,7 @@ func BenchmarkMerkleTreeBuildParallel(b *testing.B) {
 		RunInParallel:   true,
 		NumRoutines:     runtime.NumCPU(),
 	})
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		err := m.Build(genTestDataBlocks(benchSize))
 		if err != nil {
@@ -328,6 +330,24 @@ func generateCberTestCases(size int) []mt.Content {
 		}
 	}
 	return contents
+}
+
+func Benchmark_cbergoonMerkleTreeBuild(b *testing.B) {
+	contents := generateCberTestCases(benchSize)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		tree, err := mt.NewTree(contents)
+		if err != nil {
+			b.Errorf("NewTree() error = %v", err)
+		}
+		for idx := 0; idx < benchSize; idx++ {
+			_, _, err := tree.GetMerklePath(contents[idx])
+			if err != nil {
+				b.Errorf("GetMerklePath() error = %v", err)
+				return
+			}
+		}
+	}
 }
 
 func BenchmarkMerkleTreeVerify(b *testing.B) {
