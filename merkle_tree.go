@@ -169,7 +169,7 @@ func (m *MerkleTree) assignProvesParallel(buf []*Node, bufLen, step int) {
 	}
 	batch := 1 << step
 	wg := new(sync.WaitGroup)
-	for i := 0; i < numRoutines; i++ {
+	for i := 0; i < numRoutines && i < bufLen; i++ {
 		idx := 2 * i
 		wg.Add(1)
 		go func() {
