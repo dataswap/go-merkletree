@@ -255,8 +255,9 @@ func BenchmarkMerkleTreeProofGen(b *testing.B) {
 		HashFunc:        defaultHashFunc,
 		AllowDuplicates: true,
 	}
+	testCases := genTestDataBlocks(benchSize)
 	for i := 0; i < b.N; i++ {
-		_, err := New(config, genTestDataBlocks(benchSize))
+		_, err := New(config, testCases)
 		if err != nil {
 			b.Errorf("Build() error = %v", err)
 		}
@@ -270,8 +271,9 @@ func BenchmarkMerkleTreeProofGenParallel(b *testing.B) {
 		RunInParallel:   true,
 		NumRoutines:     runtime.NumCPU(),
 	}
+	testCases := genTestDataBlocks(benchSize)
 	for i := 0; i < b.N; i++ {
-		_, err := New(config, genTestDataBlocks(benchSize))
+		_, err := New(config, testCases)
 		if err != nil {
 			b.Errorf("Build() error = %v", err)
 		}
@@ -306,12 +308,15 @@ func generateCberTestCases(size int) []mt.Content {
 }
 
 func Benchmark_cbergoonMerkleTreeProofGen(b *testing.B) {
-	config := &Config{
-		HashFunc:        defaultHashFunc,
-		AllowDuplicates: true,
-	}
+	contents := generateCberTestCases(benchSize)
 	for i := 0; i < b.N; i++ {
-		_, err := New(config, genTestDataBlocks(benchSize))
+		tree, err := mt.NewTree(contents)
+		for j := 0; j < benchSize; j++ {
+			_, _, err := tree.GetMerklePath(contents[j])
+			if err != nil {
+				b.Errorf("GetMerklePath() error = %v", err)
+			}
+		}
 		if err != nil {
 			b.Errorf("Build() error = %v", err)
 		}
