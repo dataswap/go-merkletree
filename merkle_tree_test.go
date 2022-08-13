@@ -1,23 +1,19 @@
 package merkletree
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"math/rand"
 	"runtime"
 	"testing"
-
-	mt "github.com/cbergoon/merkletree"
 )
 
-const benchSize = 10000
+const benchSize = 1000
 
 type mockDataBlock struct {
 	data []byte
 }
 
-func (m *mockDataBlock) Serialize() ([]byte, error) {
-	return m.data, nil
+func (t *mockDataBlock) Serialize() ([]byte, error) {
+	return t.data, nil
 }
 
 func genTestDataBlocks(num int) []DataBlock {
@@ -35,45 +31,18 @@ func genTestDataBlocks(num int) []DataBlock {
 	return blocks
 }
 
-func (m mockDataBlock) CalculateHash() ([]byte, error) {
-	h := sha256.New()
-	if _, err := h.Write(m.data); err != nil {
-		return nil, err
-	}
-
-	return h.Sum(nil), nil
-}
-
-func (m mockDataBlock) Equals(other mt.Content) (bool, error) {
-	return bytes.Equal(m.data, other.(mockDataBlock).data), nil
-}
-
-func TestMerkleTree_Build(t *testing.T) {
-	type fields struct {
-		Config *Config
-		Root   []byte
-		Leaves []*Node
-		Proofs []*Proof
-	}
+func TestMerkleTreeNew(t *testing.T) {
 	type args struct {
 		blocks []DataBlock
+		config *Config
 	}
 	tests := []struct {
 		name    string
-		fields  fields
 		args    args
 		wantErr bool
 	}{
 		{
 			name: "test_0",
-			fields: fields{
-				Config: &Config{
-					HashFunc: defaultHashFunc,
-				},
-				Root:   nil,
-				Leaves: nil,
-				Proofs: nil,
-			},
 			args: args{
 				blocks: genTestDataBlocks(0),
 			},
@@ -81,14 +50,6 @@ func TestMerkleTree_Build(t *testing.T) {
 		},
 		{
 			name: "test_4",
-			fields: fields{
-				Config: &Config{
-					HashFunc: defaultHashFunc,
-				},
-				Root:   nil,
-				Leaves: nil,
-				Proofs: nil,
-			},
 			args: args{
 				blocks: genTestDataBlocks(4),
 			},
@@ -96,64 +57,50 @@ func TestMerkleTree_Build(t *testing.T) {
 		},
 		{
 			name: "test_8",
-			fields: fields{
-				Config: &Config{
+			args: args{
+				blocks: genTestDataBlocks(8),
+				config: &Config{
 					HashFunc:        defaultHashFunc,
 					AllowDuplicates: true,
 				},
-				Root:   nil,
-				Leaves: nil,
-				Proofs: nil,
-			},
-			args: args{
-				blocks: genTestDataBlocks(8),
 			},
 			wantErr: false,
 		},
 		{
 			name: "test_5",
-			fields: fields{
-				Config: &Config{
+			args: args{
+				blocks: genTestDataBlocks(5),
+				config: &Config{
 					HashFunc:        defaultHashFunc,
 					AllowDuplicates: true,
 				},
-				Root:   nil,
-				Leaves: nil,
-				Proofs: nil,
 			},
+			wantErr: false,
+		},
+		{
+			name: "test_1000",
 			args: args{
-				blocks: genTestDataBlocks(5),
+				blocks: genTestDataBlocks(1000),
 			},
 			wantErr: false,
 		},
 		{
 			name: "test_100_parallel",
-			fields: fields{
-				Config: &Config{
+			args: args{
+				blocks: genTestDataBlocks(100),
+				config: &Config{
 					HashFunc:        defaultHashFunc,
 					AllowDuplicates: true,
 					RunInParallel:   true,
 					NumRoutines:     4,
 				},
-				Root:   nil,
-				Leaves: nil,
-				Proofs: nil,
-			},
-			args: args{
-				blocks: genTestDataBlocks(100),
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &MerkleTree{
-				Config: tt.fields.Config,
-				Root:   tt.fields.Root,
-				Leaves: tt.fields.Leaves,
-				Proofs: tt.fields.Proofs,
-			}
-			if err := m.Build(tt.args.blocks); (err != nil) != tt.wantErr {
+			if _, err := New(tt.args.config, tt.args.blocks); (err != nil) != tt.wantErr {
 				t.Errorf("Build() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -162,11 +109,10 @@ func TestMerkleTree_Build(t *testing.T) {
 
 func verifySetup(size int) (*MerkleTree, []DataBlock, error) {
 	blocks := genTestDataBlocks(size)
-	m := NewMerkleTree(&Config{
+	m, err := New(&Config{
 		HashFunc:        defaultHashFunc,
 		AllowDuplicates: true,
-	})
-	err := m.Build(blocks)
+	}, blocks)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -175,13 +121,12 @@ func verifySetup(size int) (*MerkleTree, []DataBlock, error) {
 
 func verifySetupParallel(size int) (*MerkleTree, []DataBlock, error) {
 	blocks := genTestDataBlocks(size)
-	m := NewMerkleTree(&Config{
+	m, err := New(&Config{
 		HashFunc:        defaultHashFunc,
 		AllowDuplicates: true,
 		RunInParallel:   true,
 		NumRoutines:     4,
-	})
-	err := m.Build(blocks)
+	}, blocks)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -288,14 +233,26 @@ func TestMerkleTree_Verify(t *testing.T) {
 	}
 }
 
-func BenchmarkMerkleTreeBuild(b *testing.B) {
-	m := NewMerkleTree(&Config{
+func TestVerify(t *testing.T) {
+	m, blocks, _ := verifySetup(2)
+	// hashFunc is nil
+	got, err := Verify(blocks[0], m.Proofs[0], []byte{}, nil)
+	if err != nil {
+		t.Errorf("Verify() error = %v, wantErr %v", err, nil)
+		return
+	}
+	if got {
+		t.Errorf("Verify() got = %v, want %v", got, false)
+	}
+}
+
+func BenchmarkMerkleTreeNew(b *testing.B) {
+	config := &Config{
 		HashFunc:        defaultHashFunc,
 		AllowDuplicates: true,
-	})
-	b.ResetTimer()
+	}
 	for i := 0; i < b.N; i++ {
-		err := m.Build(genTestDataBlocks(benchSize))
+		_, err := New(config, genTestDataBlocks(benchSize))
 		if err != nil {
 			b.Errorf("Build() error = %v", err)
 		}
@@ -303,84 +260,16 @@ func BenchmarkMerkleTreeBuild(b *testing.B) {
 }
 
 func BenchmarkMerkleTreeBuildParallel(b *testing.B) {
-	m := NewMerkleTree(&Config{
+	config := &Config{
 		HashFunc:        defaultHashFunc,
 		AllowDuplicates: true,
 		RunInParallel:   true,
 		NumRoutines:     runtime.NumCPU(),
-	})
-	b.ResetTimer()
+	}
 	for i := 0; i < b.N; i++ {
-		err := m.Build(genTestDataBlocks(benchSize))
+		_, err := New(config, genTestDataBlocks(benchSize))
 		if err != nil {
 			b.Errorf("Build() error = %v", err)
-		}
-	}
-}
-
-func generateCberTestCases(size int) []mt.Content {
-	var contents []mt.Content
-	for i := 0; i < size; i++ {
-		contents = append(contents, mockDataBlock{
-			data: make([]byte, 100),
-		})
-		_, err := rand.Read(contents[i].(mockDataBlock).data)
-		if err != nil {
-			panic(err)
-		}
-	}
-	return contents
-}
-
-func Benchmark_cbergoonMerkleTreeBuild(b *testing.B) {
-	contents := generateCberTestCases(benchSize)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		tree, err := mt.NewTree(contents)
-		if err != nil {
-			b.Errorf("NewTree() error = %v", err)
-		}
-		for idx := 0; idx < benchSize; idx++ {
-			_, _, err := tree.GetMerklePath(contents[idx])
-			if err != nil {
-				b.Errorf("GetMerklePath() error = %v", err)
-				return
-			}
-		}
-	}
-}
-
-func BenchmarkMerkleTreeVerify(b *testing.B) {
-	tree, blocks, err := verifySetup(benchSize)
-	if err != nil {
-		b.Errorf("setupFunc() error = %v", err)
-		return
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for idx := 0; idx < benchSize; idx++ {
-			_, err := tree.Verify(blocks[10], tree.Proofs[10])
-			if err != nil {
-				b.Errorf("Verify() error = %v", err)
-				return
-			}
-		}
-	}
-}
-
-func Benchmark_cbergoonMerkleTreeVerify(b *testing.B) {
-	contents := generateCberTestCases(benchSize)
-	tree, err := mt.NewTree(contents)
-	if err != nil {
-		b.Fatal(err)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for idx := 0; idx < benchSize; idx++ {
-			_, err := tree.VerifyContent(contents[idx])
-			if err != nil {
-				b.Errorf("Verify() error = %v", err)
-			}
 		}
 	}
 }
