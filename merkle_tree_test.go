@@ -10,7 +10,7 @@ import (
 	mt "github.com/cbergoon/merkletree"
 )
 
-const benchSize = 1000
+const benchSize = 100000
 
 type mockDataBlock struct {
 	data []byte
