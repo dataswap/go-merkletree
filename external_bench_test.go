@@ -4,21 +4,17 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
-	mt "github.com/cbergoon/merkletree"
 	"runtime"
 	"testing"
+
+	mt "github.com/cbergoon/merkletree"
 )
 
-const benchSize = 1000
-
 func BenchmarkMerkleTreeProofGen(b *testing.B) {
-	config := &Config{
-		HashFunc:        defaultHashFunc,
-		AllowDuplicates: true,
-	}
 	testCases := genTestDataBlocks(benchSize)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := New(config, testCases)
+		_, err := New(nil, testCases)
 		if err != nil {
 			b.Errorf("Build() error = %v", err)
 		}
@@ -27,12 +23,11 @@ func BenchmarkMerkleTreeProofGen(b *testing.B) {
 
 func BenchmarkMerkleTreeProofGenParallel(b *testing.B) {
 	config := &Config{
-		HashFunc:        defaultHashFunc,
-		AllowDuplicates: true,
-		RunInParallel:   true,
-		NumRoutines:     runtime.NumCPU(),
+		RunInParallel: true,
+		NumRoutines:   runtime.NumCPU(),
 	}
 	testCases := genTestDataBlocks(benchSize)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := New(config, testCases)
 		if err != nil {
@@ -46,7 +41,6 @@ func (m mockDataBlock) CalculateHash() ([]byte, error) {
 	if _, err := h.Write(m.data); err != nil {
 		return nil, err
 	}
-
 	return h.Sum(nil), nil
 }
 
@@ -70,6 +64,7 @@ func generateCberTestCases(size int) []mt.Content {
 
 func Benchmark_cbergoonMerkleTreeProofGen(b *testing.B) {
 	contents := generateCberTestCases(benchSize)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		tree, err := mt.NewTree(contents)
 		for j := 0; j < benchSize; j++ {

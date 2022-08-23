@@ -29,7 +29,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"runtime"
 	"testing"
 
 	"github.com/agiledragon/gomonkey/v2"
@@ -984,28 +983,28 @@ func TestVerify(t *testing.T) {
 	}
 }
 
-func BenchmarkMerkleTreeNew(b *testing.B) {
-	testCases := genTestDataBlocks(benchSize)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := New(nil, testCases)
-		if err != nil {
-			b.Errorf("Build() error = %v", err)
-		}
-	}
-}
-
-func BenchmarkMerkleTreeNewParallel(b *testing.B) {
-	config := &Config{
-		RunInParallel: true,
-		NumRoutines:   runtime.NumCPU(),
-	}
-	testCases := genTestDataBlocks(benchSize)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := New(config, testCases)
-		if err != nil {
-			b.Errorf("Build() error = %v", err)
-		}
-	}
-}
+//func BenchmarkMerkleTreeNew(b *testing.B) {
+//	testCases := genTestDataBlocks(benchSize)
+//	b.ResetTimer()
+//	for i := 0; i < b.N; i++ {
+//		_, err := New(nil, testCases)
+//		if err != nil {
+//			b.Errorf("Build() error = %v", err)
+//		}
+//	}
+//}
+//
+//func BenchmarkMerkleTreeNewParallel(b *testing.B) {
+//	config := &Config{
+//		RunInParallel: true,
+//		NumRoutines:   runtime.NumCPU(),
+//	}
+//	testCases := genTestDataBlocks(benchSize)
+//	b.ResetTimer()
+//	for i := 0; i < b.N; i++ {
+//		_, err := New(config, testCases)
+//		if err != nil {
+//			b.Errorf("Build() error = %v", err)
+//		}
+//	}
+//}
