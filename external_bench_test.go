@@ -79,6 +79,46 @@ func Benchmark_cbergoonMerkleTreeProofGen(b *testing.B) {
 	}
 }
 
+func BenchmarkMerkleTreeBuild(b *testing.B) {
+	config := &Config{
+		Mode: ModeTreeBuild,
+	}
+	testCases := genTestDataBlocks(benchSize)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := New(config, testCases)
+		if err != nil {
+			b.Errorf("Build() error = %v", err)
+		}
+	}
+}
+
+func BenchmarkMerkleTreeBuildParallel(b *testing.B) {
+	config := &Config{
+		Mode:          ModeTreeBuild,
+		RunInParallel: true,
+	}
+	testCases := genTestDataBlocks(benchSize)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := New(config, testCases)
+		if err != nil {
+			b.Errorf("Build() error = %v", err)
+		}
+	}
+}
+
+func Benchmark_cbergoonMerkleTreeBuild(b *testing.B) {
+	contents := generateCberTestCases(benchSize)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := mt.NewTree(contents)
+		if err != nil {
+			b.Errorf("Build() error = %v", err)
+		}
+	}
+}
+
 func BenchmarkMerkleTreeVerify(b *testing.B) {
 	tree, blocks, err := verifySetup(benchSize)
 	if err != nil {
