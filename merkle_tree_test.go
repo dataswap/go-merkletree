@@ -35,7 +35,7 @@ import (
 	"github.com/agiledragon/gomonkey/v2"
 )
 
-const benchSize = 100000
+const benchSize = 10000
 
 type mockDataBlock struct {
 	data []byte
@@ -1027,7 +1027,7 @@ func Test_proofGenHandler(t *testing.T) {
 	patches := gomonkey.NewPatches()
 	defer patches.Reset()
 	type args struct {
-		argInterface interface{}
+		args *proofGenArgs
 	}
 	tests := []struct {
 		name    string
@@ -1038,7 +1038,7 @@ func Test_proofGenHandler(t *testing.T) {
 		{
 			name: "test_hash_func_err",
 			args: args{
-				argInterface: &proofGenArgs{
+				args: &proofGenArgs{
 					hashFunc: func([]byte) ([]byte, error) {
 						return nil, errors.New("test_hash_func_err")
 					},
@@ -1057,7 +1057,7 @@ func Test_proofGenHandler(t *testing.T) {
 				tt.mock()
 			}
 			defer patches.Reset()
-			if err := proofGenHandler(tt.args.argInterface); (err != nil) != tt.wantErr {
+			if err := proofGenHandler(tt.args.args); (err != nil) != tt.wantErr {
 				t.Errorf("proofGenHandler() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
