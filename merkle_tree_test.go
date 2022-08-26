@@ -1088,9 +1088,12 @@ func Test_proofGenHandler(t *testing.T) {
 
 func BenchmarkMerkleTreeNew(b *testing.B) {
 	testCases := genTestDataBlocks(benchSize)
+	config := &Config{
+		HashFunc: simdHashFunc,
+	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := New(nil, testCases)
+		_, err := New(config, testCases)
 		if err != nil {
 			b.Errorf("Build() error = %v", err)
 		}
