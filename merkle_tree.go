@@ -644,7 +644,7 @@ func (m *MerkleTree) buildTree() (err error) {
 				return
 			}
 		}
-		m.nodes[i+1], bufferLength = m.fixOddLength(m.nodes[i+1], len(m.nodes[i+1]), i)
+		m.nodes[i+1], bufferLength = m.fixOddLength(m.nodes[i+1], len(m.nodes[i+1]), i+1)
 	}
 	if m.Root, err = m.HashFunc(m.concatHashFunc(
 		m.nodes[m.Depth-1][0], m.nodes[m.Depth-1][1],
@@ -712,7 +712,7 @@ func (m *MerkleTree) computeTreeNodesInParallel(bufferLength int) error {
 				return err
 			}
 		}
-		m.nodes[i+1], bufferLength = m.fixOddLength(m.nodes[i+1], len(m.nodes[i+1]), i)
+		m.nodes[i+1], bufferLength = m.fixOddLength(m.nodes[i+1], len(m.nodes[i+1]), i+1)
 	}
 	return nil
 }
