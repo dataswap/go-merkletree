@@ -24,6 +24,7 @@ package merkletree
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"math/bits"
 	"runtime"
@@ -40,6 +41,10 @@ const (
 	// ModeProofGenAndTreeBuild is the proof generation and tree building configuration mode.
 	ModeProofGenAndTreeBuild
 )
+
+const MaxDepth = uint(31) // result of log2( 64 GiB / 32 )
+
+var stackedNulPadding [MaxDepth][]byte
 
 var (
 	// ErrInvalidNumOfDataBlocks is the error for an invalid number of data blocks.
@@ -96,6 +101,9 @@ type Config struct {
 	// If RunInParallel is true, the generation runs in parallel, otherwise runs without parallelization.
 	// This increase the performance for the calculation of large number of data blocks, e.g. over 10,000 blocks.
 	RunInParallel bool
+	// If false, generate a dummy node with specified hash value.
+	// Otherwise, then the odd node situation is handled by duplicating the previous node.
+	Duplicates bool
 	// SortSiblingPairs is the parameter for OpenZeppelin compatibility.
 	// If set to `true`, the hashing sibling pairs are sorted.
 	SortSiblingPairs bool
@@ -180,6 +188,11 @@ func New(config *Config, blocks []DataBlock) (m *MerkleTree, err error) {
 		}
 	}
 
+	// Init dummy hash value
+	if !m.Duplicates {
+		initDummyHash()
+	}
+
 	// Configure parallelization settings.
 	if m.RunInParallel {
 		// Set NumRoutines to the number of CPU cores if not specified or invalid.
@@ -261,6 +274,19 @@ func concatSortHash(b1 []byte, b2 []byte) []byte {
 	return concatHash(b2, b1)
 }
 
+// initialize the nul padding stack
+func initDummyHash() {
+	digest := sha256.New()
+	stackedNulPadding[0] = make([]byte, sha256.Size)
+	for i := uint(1); i < MaxDepth; i++ {
+		digest.Reset()
+		digest.Write(stackedNulPadding[i-1]) // yes, got to...
+		digest.Write(stackedNulPadding[i-1]) // ...do it twice
+		stackedNulPadding[i] = digest.Sum(make([]byte, 0, sha256.Size))
+		stackedNulPadding[i][31] &= 0x3F
+	}
+}
+
 // initProofs initializes the MerkleTree's Proofs with the appropriate size and depth.
 func (m *MerkleTree) initProofs() {
 	m.Proofs = make([]*Proof, m.NumLeaves)
@@ -277,7 +303,7 @@ func (m *MerkleTree) generateProofs() error {
 	buffer := make([][]byte, m.NumLeaves)
 	copy(buffer, m.Leaves)
 	var bufferLength int
-	buffer, bufferLength = m.fixOddLength(buffer, m.NumLeaves)
+	buffer, bufferLength = m.fixOddLength(buffer, m.NumLeaves, 0)
 
 	if m.RunInParallel {
 		return m.generateProofsInParallel(buffer, bufferLength)
@@ -293,7 +319,7 @@ func (m *MerkleTree) generateProofs() error {
 			}
 		}
 		bufferLength >>= 1
-		buffer, bufferLength = m.fixOddLength(buffer, bufferLength)
+		buffer, bufferLength = m.fixOddLength(buffer, bufferLength, step)
 		m.updateProofs(buffer, bufferLength, step)
 	}
 
@@ -375,7 +401,7 @@ func (m *MerkleTree) generateProofsInParallel(buffer [][]byte, bufferLength int)
 		bufferLength >>= 1
 
 		// Fix the buffer if it has an odd number of elements.
-		buffer, bufferLength = m.fixOddLength(buffer, bufferLength)
+		buffer, bufferLength = m.fixOddLength(buffer, bufferLength, step)
 
 		// Update the proofs with the new buffer.
 		m.updateProofsInParallel(buffer, bufferLength, step)
@@ -387,14 +413,20 @@ func (m *MerkleTree) generateProofsInParallel(buffer [][]byte, bufferLength int)
 }
 
 // fixOddLength adjusts the buffer for odd-length slices by appending a node.
-func (m *MerkleTree) fixOddLength(buffer [][]byte, bufferLength int) ([][]byte, int) {
+func (m *MerkleTree) fixOddLength(buffer [][]byte, bufferLength int, depth int) ([][]byte, int) {
 	// If the buffer length is even, no adjustment is needed.
 	if bufferLength&1 == 0 {
 		return buffer, bufferLength
 	}
 
-	// Determine the node to append.
-	appendNode := buffer[bufferLength-1]
+	var appendNode []byte
+	if m.Duplicates {
+		// Determine the node to append.
+		appendNode = buffer[bufferLength-1]
+	} else {
+		appendNode = stackedNulPadding[depth]
+	}
+
 	bufferLength++
 
 	// Append the node to the buffer, either by extending the buffer or updating an existing entry.
@@ -597,7 +629,7 @@ func (m *MerkleTree) buildTree() (err error) {
 	m.nodes[0] = make([][]byte, m.NumLeaves)
 	copy(m.nodes[0], m.Leaves)
 	var bufferLength int
-	m.nodes[0], bufferLength = m.fixOddLength(m.nodes[0], m.NumLeaves)
+	m.nodes[0], bufferLength = m.fixOddLength(m.nodes[0], m.NumLeaves, 0)
 	if m.RunInParallel {
 		if err := m.computeTreeNodesInParallel(bufferLength); err != nil {
 			return err
@@ -612,7 +644,7 @@ func (m *MerkleTree) buildTree() (err error) {
 				return
 			}
 		}
-		m.nodes[i+1], bufferLength = m.fixOddLength(m.nodes[i+1], len(m.nodes[i+1]))
+		m.nodes[i+1], bufferLength = m.fixOddLength(m.nodes[i+1], len(m.nodes[i+1]), i)
 	}
 	if m.Root, err = m.HashFunc(m.concatHashFunc(
 		m.nodes[m.Depth-1][0], m.nodes[m.Depth-1][1],
@@ -680,7 +712,7 @@ func (m *MerkleTree) computeTreeNodesInParallel(bufferLength int) error {
 				return err
 			}
 		}
-		m.nodes[i+1], bufferLength = m.fixOddLength(m.nodes[i+1], len(m.nodes[i+1]))
+		m.nodes[i+1], bufferLength = m.fixOddLength(m.nodes[i+1], len(m.nodes[i+1]), i)
 	}
 	return nil
 }
