@@ -60,6 +60,12 @@ var (
 	ErrProofInvalidModeTreeNotBuilt = errors.New("merkle tree is not in built, could not generate proof by this method")
 	// ErrProofInvalidDataBlock is the error for an invalid data block in Proof() function.
 	ErrProofInvalidDataBlock = errors.New("data block is not a member of the merkle tree")
+	// ErrMerkleTreeIsNil is the error for MerkleTree is nil
+	ErrMerkleTreeIsNil = errors.New("MerkleTree is nil")
+	// ErrLevelCacheStart is the error LevelCache start over depth
+	ErrLevelCacheStart = errors.New("LevelCache start over depth or invalid")
+	// ErrLevelCacheLevel is the error LevelCache level over depth
+	ErrLevelCacheLevel = errors.New("LevelCache level over depth or invalid")
 )
 
 // DataBlock is the interface for input data blocks used to generate the Merkle Tree.
