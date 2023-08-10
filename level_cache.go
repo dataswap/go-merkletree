@@ -11,8 +11,9 @@ type LevelCache struct {
 	LeafMap map[string]int
 	// leafMapMu is a mutex that protects concurrent access to the leafMap.
 	leafMapMu sync.Mutex
-	// nodes contains the Merkle Tree's internal node structure.
+	// Nodes contains the Merkle Tree's internal node structure.
 	Nodes [][][]byte
+	// Start is the level of the cache Merkle Tree. leaf level is 0.
 	Start int
 	// Level is the Levels of the cache Merkle Tree.
 	Level int
