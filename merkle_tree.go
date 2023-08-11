@@ -24,7 +24,6 @@ package merkletree
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"errors"
 	"math/bits"
 	"runtime"
@@ -42,9 +41,7 @@ const (
 	ModeProofGenAndTreeBuild
 )
 
-const MaxDepth = uint(31) // result of log2( 64 GiB / 32 )
-
-var stackedNulPadding [MaxDepth][]byte
+var stackedNulPadding [][]byte
 
 var (
 	// ErrInvalidNumOfDataBlocks is the error for an invalid number of data blocks.
@@ -194,11 +191,6 @@ func New(config *Config, blocks []DataBlock) (m *MerkleTree, err error) {
 		}
 	}
 
-	// Init dummy hash value
-	if !m.Duplicates {
-		initDummyHash()
-	}
-
 	// Configure parallelization settings.
 	if m.RunInParallel {
 		// Set NumRoutines to the number of CPU cores if not specified or invalid.
@@ -261,6 +253,16 @@ func New(config *Config, blocks []DataBlock) (m *MerkleTree, err error) {
 	return nil, ErrInvalidConfigMode
 }
 
+// New generates a new Merkle Tree with the specified configuration and data blocks.
+func NewWithPadding(config *Config, blocks []DataBlock, Padding [][]byte) (m *MerkleTree, err error) {
+
+	if config != nil && !config.Duplicates {
+		// Init padding value
+		stackedNulPadding = Padding
+	}
+	return New(config, blocks)
+}
+
 // concatSortHash concatenates two byte slices, b1 and b2, in a sorted order.
 func concatHash(b1 []byte, b2 []byte) []byte {
 	result := make([]byte, len(b1)+len(b2))
@@ -278,19 +280,6 @@ func concatSortHash(b1 []byte, b2 []byte) []byte {
 		return concatHash(b1, b2)
 	}
 	return concatHash(b2, b1)
-}
-
-// initialize the nul padding stack
-func initDummyHash() {
-	digest := sha256.New()
-	stackedNulPadding[0] = make([]byte, sha256.Size)
-	for i := uint(1); i < MaxDepth; i++ {
-		digest.Reset()
-		digest.Write(stackedNulPadding[i-1]) // yes, got to...
-		digest.Write(stackedNulPadding[i-1]) // ...do it twice
-		stackedNulPadding[i] = digest.Sum(make([]byte, 0, sha256.Size))
-		stackedNulPadding[i][31] &= 0x3F
-	}
 }
 
 // initProofs initializes the MerkleTree's Proofs with the appropriate size and depth.
@@ -426,7 +415,7 @@ func (m *MerkleTree) fixOddLength(buffer [][]byte, bufferLength int, depth int) 
 	}
 
 	var appendNode []byte
-	if m.Duplicates {
+	if m.Duplicates || stackedNulPadding == nil {
 		// Determine the node to append.
 		appendNode = buffer[bufferLength-1]
 	} else {
