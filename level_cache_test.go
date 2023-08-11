@@ -56,7 +56,7 @@ func TestProve(t *testing.T) {
 		DisableLeafHashing: true,
 		Mode:               ModeTreeBuild,
 	}
-	proof, root, err := lc.Prove(lc.Nodes[0][0], config)
+	proof, root, err := lc.Prove(&mock.DataBlock{Data: lc.Nodes[0][0]}, config)
 	if err != nil {
 		t.Errorf("test TestProve error %v", err)
 	}
@@ -91,11 +91,11 @@ func TestAppendProof(t *testing.T) {
 		DisableLeafHashing: true,
 		Mode:               ModeTreeBuild,
 	}
-	p1, root, err := lc.Prove(lc.Nodes[0][5], config)
+	p1, root, err := lc.Prove(&mock.DataBlock{Data: lc.Nodes[0][5]}, config)
 	if err != nil {
 		t.Errorf("test TestAppendProof error %v", err)
 	}
-	p2, root1, err := lc1.Prove(root, config)
+	p2, root1, err := lc1.Prove(&mock.DataBlock{Data: root}, config)
 	if err != nil {
 		t.Errorf("test TestAppendProof error %v", err)
 	}

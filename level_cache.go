@@ -94,7 +94,12 @@ func (lc *LevelCache) StoreToFile(filePath string) error {
 	return nil
 }
 
-func (lc *LevelCache) Prove(leaf []byte, config *Config) (*Proof, []byte, error) {
+func (lc *LevelCache) Prove(dataBlock DataBlock, config *Config) (*Proof, []byte, error) {
+
+	leaf, err := dataBlockToLeaf(dataBlock, config)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Retrieve the index of the leaf in the Merkle Tree.
 	lc.leafMapMu.Lock()
@@ -134,7 +139,6 @@ func (lc *LevelCache) Prove(leaf []byte, config *Config) (*Proof, []byte, error)
 	}
 	// Traverse the Merkle proof and compute the root hash.
 	// Copy the slice so that the original leaf won't be modified.
-	var err error
 	root := make([]byte, len(leaf))
 	copy(root, leaf)
 	relativePath := path >> lc.Start
