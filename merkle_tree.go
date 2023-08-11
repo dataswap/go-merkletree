@@ -417,7 +417,7 @@ func (m *MerkleTree) fixOddLength(buffer [][]byte, bufferLength int, depth int) 
 	}
 
 	var appendNode []byte
-	if m.Duplicates || stackedNulPadding == nil {
+	if m.Duplicates || stackedNulPadding[0] == nil {
 		// Determine the node to append.
 		appendNode = buffer[bufferLength-1]
 	} else {
