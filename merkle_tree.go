@@ -39,9 +39,11 @@ const (
 	ModeTreeBuild
 	// ModeProofGenAndTreeBuild is the proof generation and tree building configuration mode.
 	ModeProofGenAndTreeBuild
+
+	MaxDepth = uint(31) // result of log2( 64 GiB / 32 )
 )
 
-var stackedNulPadding [][]byte
+var stackedNulPadding [MaxDepth][]byte
 
 var (
 	// ErrInvalidNumOfDataBlocks is the error for an invalid number of data blocks.
@@ -254,7 +256,7 @@ func New(config *Config, blocks []DataBlock) (m *MerkleTree, err error) {
 }
 
 // New generates a new Merkle Tree with the specified configuration and data blocks.
-func NewWithPadding(config *Config, blocks []DataBlock, Padding [][]byte) (m *MerkleTree, err error) {
+func NewWithPadding(config *Config, blocks []DataBlock, Padding [MaxDepth][]byte) (m *MerkleTree, err error) {
 
 	if config != nil && !config.Duplicates {
 		// Init padding value
