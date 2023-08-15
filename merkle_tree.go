@@ -719,6 +719,34 @@ func (m *MerkleTree) Verify(dataBlock DataBlock, proof *Proof) (bool, error) {
 	return Verify(dataBlock, proof, m.Root, &m.Config)
 }
 
+// Verify checks if the data blocks are valid using the Merkle Tree proof and the cached Merkle root hash.
+// Note: Verify Proofs must use same []DataBlock sequence！
+func (m *MerkleTree) MultiVerify(dataBlocks []DataBlock, proof *Proof) (bool, error) {
+	for _, dataBlock := range dataBlocks {
+		rst, err := Verify(dataBlock, proof, m.Root, &m.Config)
+		if err != nil || !rst {
+			return false, err
+		}
+	}
+
+	return true, nil
+}
+
+// Verify checks if the data blocks are valid using the Merkle Tree proof and the provided Merkle root hash.
+// It returns true if the data block is valid, false otherwise. An error is returned in case of any issues
+// during the verification process.
+// Note: Verify Proofs must use same []DataBlock sequence！
+func MultiVerify(dataBlocks []DataBlock, proof *Proof, root []byte, config *Config) (bool, error) {
+	for _, dataBlock := range dataBlocks {
+		rst, err := Verify(dataBlock, proof, root, config)
+		if err != nil || !rst {
+			return false, err
+		}
+	}
+
+	return true, nil
+}
+
 // Verify checks if the data block is valid using the Merkle Tree proof and the provided Merkle root hash.
 // It returns true if the data block is valid, false otherwise. An error is returned in case of any issues
 // during the verification process.
@@ -809,4 +837,20 @@ func (m *MerkleTree) Proof(dataBlock DataBlock) (*Proof, error) {
 		Path:     path,
 		Siblings: siblings,
 	}, nil
+}
+
+// Proofs generates the Merkle proof for some data blocks using the previously generated Merkle Tree structure.
+// Note: Verify Proofs must use same []DataBlock sequence！
+func (m *MerkleTree) MultiProof(dataBlocks []DataBlock) (*[]Proof, error) {
+	proofs := []Proof{}
+
+	for _, dataBlock := range dataBlocks {
+		proof, err := m.Proof(dataBlock)
+		if err != nil {
+			return nil, nil
+		}
+		proofs = append(proofs, *proof)
+	}
+
+	return &proofs, nil
 }
