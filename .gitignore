@@ -1,4 +1,5 @@
 *.prof
+store.gob
 
 # Binaries for programs and plugins
 *.exe

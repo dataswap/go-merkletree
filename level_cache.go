@@ -40,7 +40,7 @@ func NewLevelCache(m *MerkleTree, start int, level int) (*LevelCache, error) {
 	go func() {
 		lc.leafMapMu.Lock()
 		defer lc.leafMapMu.Unlock()
-		for i := 0; i < m.NumLeaves>>start; i++ {
+		for i := 0; i < len(m.nodes[start]); i++ {
 			lc.LeafMap[string(m.nodes[start][i])] = i
 		}
 		finishMap <- struct{}{} // empty channel to serve as a wait group for map generation
